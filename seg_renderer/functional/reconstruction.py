@@ -66,14 +66,11 @@ class Reconstruction3D(nn.Module):
                 # query function
                 occupancys = self.query_func(**kwargs, points=coords3D)
                 if type(occupancys) is list:
-                    occupancys = torch.stack(occupancys) #[bz, N, 3]
+                    occupancys = torch.stack(occupancys) #[bz, N]
                 occupancys = occupancys.view(
-                    self.batchsize, resolution, resolution, resolution, 3)
+                    self.batchsize, resolution, resolution, resolution)
         
-            
-
-
-        print (len(occupancys), occupancys[0].shape)
+        return occupancys
 
 
 
