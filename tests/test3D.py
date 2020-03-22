@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from scipy.spatial import cKDTree
 
-from implicit_seg.functional.reconstruction import Reconstruction3D
+from implicit_seg.functional import Reconstruction3D
 
 class HoppeSDF:
     def __init__(self, points, normals):
@@ -140,8 +140,8 @@ engine = Reconstruction3D(
     query_func = query_oc, 
     b_min = b_min,
     b_max = b_max,
-    resolutions = [16+1, 32+1, 64+1, 128+1],
-    num_points = [None, 1000, 3000, 9000],
+    resolutions = [16+1, 32+1],
+    num_points = [None, 1000],
     device="cuda:0", 
 )
 
