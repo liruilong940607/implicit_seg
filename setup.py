@@ -1,27 +1,21 @@
 from setuptools import setup, find_packages
 
-from torch.utils.cpp_extension import BuildExtension, CUDAExtension
+with open("README.md", "r") as fh:
+    long_description = fh.read()
 
-CUDA_FLAGS = []
-
-ext_modules=[
-    CUDAExtension('seg_renderer.cuda.reconstruction', [
-        'soft_renderer/cuda/reconstruction_cuda.cpp',
-        'soft_renderer/cuda/reconstruction_cuda_kernel.cu',
-        ]),
-    ]
-
-INSTALL_REQUIREMENTS = ['numpy', 'torch', 'torchvision', 'tqdm', 'imageio']
-
-setup(
-    description='',
-    author='Ruilong Li',
-    author_email='',
-    license='MIT License',
-    version='0.0.1',
-    name='seg_renderer',
-    packages=['seg_renderer', 'seg_renderer.cuda', 'seg_renderer.functional'],
-    install_requires=INSTALL_REQUIREMENTS,
-    ext_modules=ext_modules,
-    cmdclass = {'build_ext': BuildExtension}
+setuptools.setup(
+    name="implicit_seg",
+    version="0.0.1",
+    author="Ruilong Li",
+    author_email="ruilongl@usc.edu",
+    description="3D & 2D segmentation via implicit function.",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/liruilong940607/implicit_seg",
+    packages=setuptools.find_packages(),
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+    ],
 )
