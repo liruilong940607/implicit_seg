@@ -1,8 +1,8 @@
-import sys; sys.path.insert(0, "../")
+# import sys; sys.path.insert(0, "../")
 import trimesh
 import numpy as np
 
-from seg_renderer.functional.reconstruction import Reconstruction2D
+from implicit_seg.functional.reconstruction import Reconstruction2D
 
 ## support batch processing.
 ## support normal calculation.

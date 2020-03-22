@@ -1,10 +1,10 @@
-import sys; sys.path.insert(0, "../")
+# import sys; sys.path.insert(0, "../")
 import trimesh
 import numpy as np
 import torch
 from scipy.spatial import cKDTree
 
-from seg_renderer.functional.reconstruction import Reconstruction3D
+from implicit_seg.functional.reconstruction import Reconstruction3D
 
 class HoppeSDF:
     def __init__(self, points, normals):
