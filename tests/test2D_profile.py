@@ -22,15 +22,14 @@ def query_func(tensor, points):
     return occupancys
 
 if __name__ == "__main__":
-    resolutions = [28+1, 56+1, 112+1, 224+1, 448+1]
-    num_points = [None, 29**2, 29**2, 29**2, 29**2]
+    import tqdm
+    resolutions = [28+1, 56+1, 112+1, 224+1, 448+1, 896+1]
+    num_points = [None, 29**2, 29**2, 29**2, 29**2, 29**2]
     
     # gt
     query_mask = torch.from_numpy(
         cv2.blur(cv2.imread("../models/image.png", cv2.IMREAD_UNCHANGED), (20, 20))[:, :, 3]
     ).unsqueeze(0).unsqueeze(0).to("cuda:0").float() / 255.0
-    gt = F.interpolate(query_mask, resolutions[-1], mode="bilinear", align_corners=False)
-    # plot_mask2D(gt[0, 0].to("cpu"), None, title="gt")
 
     # infer
     engine = Reconstruction2D(
@@ -42,15 +41,8 @@ if __name__ == "__main__":
         device="cuda:0", 
         # visualize_path="../data/"
     )
-    occupancys = engine.forward(tensor=query_mask)
-    # cv2.imwrite(
-    #    "../data/test2D.png",
-    #    np.uint8(occupancys[0, 0].cpu().numpy() * 255)
-    # )
+    with torch.no_grad():
+        for _ in tqdm.tqdm(range(1000)):
+            occupancys = engine.forward(tensor=query_mask)
 
-    # metric
-    intersection = (occupancys > 0.5) & (gt > 0.5)
-    union = (occupancys > 0.5) | (gt > 0.5)
-    iou = intersection.sum().float() / union.sum().float()
-    print (f"iou is {iou}")
     
