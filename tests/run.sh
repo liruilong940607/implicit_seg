@@ -1,0 +1,1 @@
+python -m cProfile -s cumtime bunny3d.py > timer.txt

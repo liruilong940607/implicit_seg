@@ -26,19 +26,20 @@ class HoppeSDF:
         dirs = points - self.points[idx]
         signs = (dirs * self.normals[idx]).sum(axis=1)
         signs = (signs > 0) * 2 - 1
-        return signs * dists
+        return - signs * dists
 
-def load_model(path="../models/bunny.ply", scale_factor=1.0, hoppe=True):
+def load_model(path="../models/rp_alison_posed_001.obj", scale_factor=1.0, hoppe=True):
     model = trimesh.load(path)
-    verts = model.vertices * scale_factor
+    verts = model.vertices 
     faces = model.faces
     normals = model.vertex_normals
 
-    b_min = verts.min(axis = 0)
+    b_min = verts.min(axis = 0) 
     b_max = verts.max(axis = 0)
-    size = b_max - b_min
-    b_min = b_min - 0.1 * size
-    b_max = b_max + 0.1 * size
+    size = (b_max - b_min) / 2
+    center = (b_max + b_min) / 2
+    b_min = center - size / scale_factor
+    b_max = center + size / scale_factor
     print (f"===> load {path} with scale factor {scale_factor}")
     print (f"b_min: {b_min};")
     print (f"b_max: {b_max};")
@@ -87,21 +88,24 @@ def query_oc(refs, points):
 
     if type(refs[0]) == trimesh.Trimesh:
         sdfs = query_sdf(refs, points)
-        occupancys = [np.float32(sdf > 0) for sdf in sdfs]
+        # occupancys = [np.float32(sdf > 0) for sdf in sdfs]
+        occupancys = [np.float32(1/(1 + np.exp(-sdf)))  for sdf in sdfs]
     elif type(refs[0]) == HoppeSDF:
         sdfs = query_sdf_hoppe(refs, points)
-        occupancys = [np.float32(sdf > 0) for sdf in sdfs]
+        # occupancys = [np.float32(sdf > 0) for sdf in sdfs]
+        occupancys = [np.float32(1/(1 + np.exp(-sdf)))  for sdf in sdfs]
     else:
         raise NotImplementedError
 
     if device is not None:
-        occupancys = [torch.from_numpy(oc).to(device) for oc in occupancys]
+        occupancys = [
+            torch.from_numpy(oc).to(device).unsqueeze(0) for oc in occupancys]
 
     return occupancys
 
 models = [
-    load_model(scale_factor=1.0), 
-    load_model(scale_factor=0.5),
+    load_model(scale_factor=0.8), 
+    # load_model(scale_factor=0.5),
 ]
 refs = [
     model[0] for model in models
@@ -114,19 +118,46 @@ b_max = [
 ]
 points = [
     np.array([[0.0, 0.1, 0.0], [0.0, 0.1, 0.1]]), 
-    np.array([[0.0, 0.1, 0.0]])
+    # np.array([[0.0, 0.1, 0.0]])
 ]
 print (
     "===> results \n",
     query_oc(refs, points),
 )
 
+# engine = Reconstruction3D(
+#     query_func = query_oc, 
+#     b_min = b_min,
+#     b_max = b_max,
+#     resolutions = [128+1],
+#     num_points = [None],
+#     device="cuda:0", 
+# )
+
+# occupancys1 = engine.forward(refs=refs)
+
 engine = Reconstruction3D(
     query_func = query_oc, 
     b_min = b_min,
     b_max = b_max,
-    resolutions = [28+1, 56+1, 112+1, 224+1],
+    resolutions = [16+1, 32+1, 64+1, 128+1],
+    num_points = [None, 1000, 3000, 9000],
     device="cuda:0", 
 )
 
-occupancys = engine.forward(refs=refs)
+occupancys2 = engine.forward(refs=refs)
+
+# ====== 16 -> 32 =======
+# 237 conflicts (0 num_points)
+# 126 conflicts (300 num_points)
+# 30 conflicts (1000 num_points)
+# 3 conflicts (5000 num_points)
+# ====== 32 -> 64 =======
+# 770 conflicts (0 num_points)
+# 442 conflicts (1000 num_points)
+# 97 conflicts (5000 num_points)
+# 18 conflicts (10000 num_points)
+# ====== 64 -> 128 =======
+# 2523 conflicts (0 num_points)
+# 605 conflicts (10000 num_points)
+# print (occupancys2.numel(), ((occupancys1>0.5) != (occupancys2>0.5)).sum())
