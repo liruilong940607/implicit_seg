@@ -19,6 +19,13 @@ num_points = [
     13*21*13*16, 
     13*21*13*64, 
 ]
+clip_mins = [
+    None,
+    -6.3,
+    -3.0,
+    -1.5,
+    -0.8
+]
 align_corners = False
 
 def query_func(tensor, points):
@@ -40,7 +47,8 @@ def query_func(tensor, points):
     ]
     return occupancys
 
-if __name__ == "__main__":    
+if __name__ == "__main__":  
+    import tqdm  
     # gt
     query_sdfs = torch.load(
         "../data/rp_amber_posed_028_sdf.pth").to("cuda:0").float() # [1, 1, H, W, D]
@@ -60,13 +68,16 @@ if __name__ == "__main__":
         b_max = [[1.0, 1.0, 1.0]],
         resolutions = resolutions,
         num_points = num_points,
+        clip_mins = clip_mins,
         align_corners = align_corners,
         balance_value = 0.,
         device="cuda:0", 
         # visualize_path="../data/"
     )
 
-    sdfs = engine.forward(tensor=query_sdfs)
+    with torch.no_grad():
+        for _ in tqdm.tqdm(range(1000)):
+            sdfs = engine.forward(tensor=query_sdfs)
     print (sdfs.shape)
     cv2.imwrite(
        "../data/gen_sdf_sumz.png",

@@ -7,14 +7,14 @@ import os
 from .utils import (
     create_grid3D,
     calculate_uncertainty,
-    get_uncertain_point_coords_on_grid3D,
+    get_uncertain_point_coords_on_grid3D_faster as get_uncertain_point_coords_on_grid3D,
 )
 
 class Reconstruction3D(nn.Module):
     def __init__(self, 
-                 query_func, b_min, b_max, resolutions, num_points, 
-                 channels=1, balance_value=0.5, device="cuda:0", 
-                 align_corners=False, visualize_path=None):
+                 query_func, b_min, b_max, resolutions, num_points, clip_mins,
+                 channels=1, balance_value=0.5, device="cuda:0", align_corners=False, 
+                 visualize_path=None):
         """
         align_corners: same with how you process gt. (grid_sample / interpolate) 
         """
@@ -28,6 +28,7 @@ class Reconstruction3D(nn.Module):
             resolutions = torch.tensor(resolutions)
         self.resolutions = resolutions.to(device)
         self.num_points = num_points
+        self.clip_mins = clip_mins
         self.device = device
         self.batchsize = self.b_min.size(0)
         self.balance_value = balance_value
@@ -76,7 +77,7 @@ class Reconstruction3D(nn.Module):
         final_H = self.resolutions[-1][1]
         final_D = self.resolutions[-1][2]
         
-        for resolution, num_pt in zip(self.resolutions, self.num_points):
+        for resolution, num_pt, clip_min in zip(self.resolutions, self.num_points, self.clip_mins):
             W, H, D = resolution
             stride = (self.resolutions[-1] - 1) / (resolution - 1)
             
@@ -99,7 +100,7 @@ class Reconstruction3D(nn.Module):
 
                 uncertainty = calculate_uncertainty(occupancys, balance_value=self.balance_value)
                 point_indices, point_coords = get_uncertain_point_coords_on_grid3D(
-                    uncertainty, num_points=num_pt)
+                    uncertainty, num_points=num_pt, clip_min=clip_min)
                 
                 coords = point_coords * stride
                 occupancys_topk = self.batch_eval(coords, **kwargs)

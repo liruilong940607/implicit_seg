@@ -60,7 +60,7 @@ def create_grid2D(min, max, steps, device="cuda:0"):
     coords = coords.view(2, -1).t() # [N, 2]
     return coords
 
-def get_uncertain_point_coords_on_grid3D(uncertainty_map, num_points):
+def get_uncertain_point_coords_on_grid3D(uncertainty_map, num_points, **kwargs):
     """
     Find `num_points` most uncertain points from `uncertainty_map` grid.
     Args:
@@ -79,7 +79,43 @@ def get_uncertain_point_coords_on_grid3D(uncertainty_map, num_points):
     # d_step = 1.0 / float(D)
 
     num_points = min(D * H * W, num_points)
-    point_indices = torch.topk(uncertainty_map.view(R, D * H * W), k=num_points, dim=1)[1]
+    point_scores, point_indices = torch.topk(uncertainty_map.view(R, D * H * W), k=num_points, dim=1)
+    point_coords = torch.zeros(R, num_points, 3, dtype=torch.float, device=uncertainty_map.device)
+    # point_coords[:, :, 0] = h_step / 2.0 + (point_indices // (W * D)).to(torch.float) * h_step
+    # point_coords[:, :, 1] = w_step / 2.0 + (point_indices % (W * D) // D).to(torch.float) * w_step
+    # point_coords[:, :, 2] = d_step / 2.0 + (point_indices % D).to(torch.float) * d_step
+    point_coords[:, :, 0] = (point_indices % W).to(torch.float) # x
+    point_coords[:, :, 1] = (point_indices % (H * W) // W).to(torch.float) # y
+    point_coords[:, :, 2] = (point_indices // (H * W)).to(torch.float) # z
+    # print (point_scores.min(), point_scores.max())
+    return point_indices, point_coords
+
+def get_uncertain_point_coords_on_grid3D_faster(uncertainty_map, num_points, clip_min):
+    """
+    Find `num_points` most uncertain points from `uncertainty_map` grid.
+    Args:
+        uncertainty_map (Tensor): A tensor of shape (N, 1, H, W, D) that contains uncertainty
+            values for a set of points on a regular H x W x D grid.
+        num_points (int): The number of points P to select.
+    Returns:
+        point_indices (Tensor): A tensor of shape (N, P) that contains indices from
+            [0, H x W x D) of the most uncertain points.
+        point_coords (Tensor): A tensor of shape (N, P, 3) that contains [0, 1] x [0, 1] normalized
+            coordinates of the most uncertain points from the H x W x D grid.
+    """
+    R, _, D, H, W = uncertainty_map.shape
+    # h_step = 1.0 / float(H)
+    # w_step = 1.0 / float(W)
+    # d_step = 1.0 / float(D)
+
+    assert R == 1, "batchsize > 1 is not implemented!"
+    uncertainty_map = uncertainty_map.view(D * H * W)
+    indices = (uncertainty_map >= clip_min).nonzero().squeeze(1)
+    num_points = min(num_points, indices.size(0))
+    point_scores, point_indices = torch.topk(
+        uncertainty_map[indices], k=num_points, dim=0)
+    point_indices = indices[point_indices].unsqueeze(0)
+
     point_coords = torch.zeros(R, num_points, 3, dtype=torch.float, device=uncertainty_map.device)
     # point_coords[:, :, 0] = h_step / 2.0 + (point_indices // (W * D)).to(torch.float) * h_step
     # point_coords[:, :, 1] = w_step / 2.0 + (point_indices % (W * D) // D).to(torch.float) * w_step
@@ -116,7 +152,7 @@ def get_uncertain_point_coords_on_grid2D(uncertainty_map, num_points, **kwargs):
     # print (point_scores.min(), point_scores.max())
     return point_indices, point_coords
 
-def get_uncertain_point_coords_on_grid2D_faster(uncertainty_map, num_points, clip_min=-1e9):
+def get_uncertain_point_coords_on_grid2D_faster(uncertainty_map, num_points, clip_min):
     """
     Find `num_points` most uncertain points from `uncertainty_map` grid.
     Args:
@@ -141,7 +177,6 @@ def get_uncertain_point_coords_on_grid2D_faster(uncertainty_map, num_points, cli
         uncertainty_map[indices], k=num_points, dim=0)
     point_indices = indices[point_indices].unsqueeze(0)
 
-    # point_scores, point_indices = torch.topk(uncertainty_map.view(R, H * W), k=num_points, dim=1)
     point_coords = torch.zeros(R, num_points, 2, dtype=torch.long, device=uncertainty_map.device)
     # point_coords[:, :, 0] = w_step / 2.0 + (point_indices % W).to(torch.float) * w_step
     # point_coords[:, :, 1] = h_step / 2.0 + (point_indices // W).to(torch.float) * h_step

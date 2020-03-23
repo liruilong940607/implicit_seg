@@ -1,1 +1,1 @@
-python -m cProfile -s cumtime test3D_profile.py > timer.txt
+python -m cProfile -s cumtime test3D.py > timer.txt

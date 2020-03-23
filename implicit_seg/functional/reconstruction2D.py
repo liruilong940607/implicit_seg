@@ -7,7 +7,7 @@ import os
 from .utils import (
     create_grid2D,
     calculate_uncertainty,
-    get_uncertain_point_coords_on_grid2D_faster,
+    get_uncertain_point_coords_on_grid2D_faster as get_uncertain_point_coords_on_grid2D,
     plot_mask2D,
 )
 
@@ -107,7 +107,7 @@ class Reconstruction2D(nn.Module):
                     continue
 
                 uncertainty = calculate_uncertainty(occupancys, balance_value=self.balance_value)
-                point_indices, point_coords = get_uncertain_point_coords_on_grid2D_faster(
+                point_indices, point_coords = get_uncertain_point_coords_on_grid2D(
                     uncertainty, num_points=num_pt, clip_min=clip_min)
                 
                 coords = point_coords * stride
