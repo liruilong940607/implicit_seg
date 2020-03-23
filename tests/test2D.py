@@ -8,6 +8,7 @@ from implicit_seg.functional.utils import plot_mask2D
 
 resolutions = [(20+1, 30+1), (40+1, 60+1), (80+1, 120+1), (160+1, 240+1)]
 num_points = [None, 21*31, 21*31, 21*31]
+clip_mins = [None, -0.4, -0.2, -0.05]
 align_corners = False
 
 # resolutions = [28+1, 56+1, 112+1, 224+1, 448+1]
@@ -54,9 +55,10 @@ if __name__ == "__main__":
         resolutions = resolutions,
         num_points = num_points,
         align_corners = align_corners,
+        clip_mins = clip_mins, 
         balance_value = 0.5,
         device="cuda:0", 
-        # visualize_path="../data/"
+        visualize_path="../data/"
     )
     occupancys = engine.forward(tensor=query_mask)
     # cv2.imwrite(
