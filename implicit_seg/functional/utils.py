@@ -1,5 +1,4 @@
 import torch
-# First we define a simple function to help us plot the intermediate representations.
 import matplotlib.pyplot as plt
 
 def plot_mask2D(mask, save_path, title="", point_coords=None, figsize=10, point_marker_size=5):
@@ -41,10 +40,16 @@ def create_grid3D(min, max, steps, device="cuda:0"):
     return coords
 
 def create_grid2D(min, max, steps, device="cuda:0"):
-    arrange = torch.linspace(min, max, steps).long().to(device)
-    coords = torch.stack(torch.meshgrid([
-        arrange, arrange
-    ])[::-1]) # [2, steps, steps]
+    if type(min) is int:
+        min = (min, min) # (x, y)
+    if type(max) is int:
+        max = (max, max) # (x, y)
+    if type(steps) is int:
+        steps = (steps, steps) # (x, y)
+    arrangeX = torch.linspace(min[0], max[0], steps[0]).long().to(device)
+    arrangeY = torch.linspace(min[1], max[1], steps[1]).long().to(device)
+    girdH, gridW = torch.meshgrid([arrangeY, arrangeX])
+    coords = torch.stack([gridW, girdH]) # [2, steps[0], steps[1]]
     coords = coords.view(2, -1).t() # [N, 2]
     return coords
 

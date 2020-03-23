@@ -15,23 +15,31 @@ class Reconstruction2D(nn.Module):
     def __init__(self, 
                  query_func, b_min, b_max, resolutions, num_points, 
                  channels=1, balance_value=0.5, device="cuda:0", 
-                 visualize_path=None):
+                 align_corners=False, visualize_path=None):
+        """
+        align_corners: same with how you process gt. (grid_sample / interpolate) 
+        """
         super().__init__()
         self.query_func = query_func
         self.b_min = torch.tensor(b_min).float().to(device).unsqueeze(1) #[bz, 1, 2]
         self.b_max = torch.tensor(b_max).float().to(device).unsqueeze(1) #[bz, 1, 2]
-        self.resolutions = resolutions
+        if type(resolutions[0]) is int:
+            resolutions = torch.tensor([(res, res) for res in resolutions])
+        else:
+            resolutions = torch.tensor(resolutions)
+        self.resolutions = resolutions.to(device)
         self.num_points = num_points
         self.device = device
         self.batchsize = self.b_min.size(0)
         self.balance_value = balance_value
         self.channels = channels; assert channels == 1
+        self.align_corners = align_corners
         self.visualize_path = visualize_path
         if self.visualize_path:
             os.makedirs(visualize_path, exist_ok=True)
 
         for resolution in resolutions:
-            assert resolution % 2 == 1, \
+            assert resolution[0] % 2 == 1 and resolution[1] % 2 == 1, \
             f"resolution {resolution} need to be odd becuase of align_corner." 
 
         # init first resolution
@@ -40,18 +48,17 @@ class Reconstruction2D(nn.Module):
         self.init_coords = self.init_coords.unsqueeze(0).repeat(
             self.batchsize, 1, 1) #[bz, N, 2]
 
-    def batch_eval(self, resolution, coords, align_corners=False, **kwargs):
+    def batch_eval(self, coords, **kwargs):
         """
         coords: in the coordinates of last resolution
-        align_corners: same with how you process gt. (grid_sample / interpolate) 
         **kwargs: for query_func
         """
         # normalize coords to fit in [b_min, b_max]
-        if align_corners:
-            coords2D = coords.float() / (self.resolutions[-1] - 1) 
+        if self.align_corners:
+            coords2D = coords.float() / (self.resolutions[-1] - 1)
         else:
-            step = 1.0 / self.resolutions[-1]
-            coords2D = coords.float() / self.resolutions[-1] + step / 2.0
+            step = 1.0 / self.resolutions[-1].float()
+            coords2D = coords.float() / self.resolutions[-1] + step / 2
         coords2D = coords2D * (self.b_max - self.b_min) + self.b_min
         # query function
         occupancys = self.query_func(**kwargs, points=coords2D)
@@ -66,30 +73,34 @@ class Reconstruction2D(nn.Module):
         output occupancy field would be:
         (bz, C, res, res)
         """
+        final_W = self.resolutions[-1][0]
+        final_H = self.resolutions[-1][1]
+        
         for resolution, num_pt in zip(self.resolutions, self.num_points):
+            W, H = resolution
             stride = (self.resolutions[-1] - 1) / (resolution - 1)
-
+            
             # first step
-            if resolution == self.resolutions[0]:
+            if torch.equal(resolution, self.resolutions[0]):
                 coords = self.init_coords.clone() # torch.long 
-                occupancys = self.batch_eval(resolution, coords, **kwargs, align_corners=False)
-                occupancys = occupancys.view(
-                    self.batchsize, self.channels, resolution, resolution)
+                occupancys = self.batch_eval(coords, **kwargs)
+                occupancys = occupancys.view(self.batchsize, self.channels, H, W)
 
                 if self.visualize_path:
                     final = F.interpolate(
-                        occupancys.float(), size=self.resolutions[-1], 
-                        mode="bilinear", align_corners=True)
+                        occupancys.float(), size=(final_H, final_W), 
+                        mode="bilinear", align_corners=True) # here true is correct!
                     x = coords[0, :, 0].to("cpu")
                     y = coords[0, :, 1].to("cpu")
                     save_path = os.path.join(
-                        self.visualize_path, f"recon2D_res{resolution}.png")
+                        self.visualize_path, f"recon2D_W={W}_H={H}png")
                     plot_mask2D(
                         final[0, 0].to("cpu"), save_path, point_coords=(x, y))
 
             else:
+                # here true is correct!
                 occupancys = F.interpolate(
-                    occupancys.float(), size=resolution, mode="bilinear", align_corners=True)
+                    occupancys.float(), size=(H, W), mode="bilinear", align_corners=True)
                 
                 if not num_pt > 0:
                     continue
@@ -99,7 +110,7 @@ class Reconstruction2D(nn.Module):
                     uncertainty, num_points=num_pt)
                 
                 coords = point_coords * stride
-                occupancys_topk = self.batch_eval(resolution, coords, **kwargs, align_corners=False)
+                occupancys_topk = self.batch_eval(coords, **kwargs)
                 
                 # put mask point predictions to the right places on the upsampled grid.
                 R, C, H, W = occupancys.shape
@@ -112,12 +123,12 @@ class Reconstruction2D(nn.Module):
 
                 if self.visualize_path:
                     final = F.interpolate(
-                        occupancys.float(), size=self.resolutions[-1], 
-                        mode="bilinear", align_corners=True)
+                        occupancys.float(), size=(final_H, final_W), 
+                        mode="bilinear", align_corners=True) # here true is correct!
                     x = coords[0, :, 0].to("cpu")
                     y = coords[0, :, 1].to("cpu")
                     save_path = os.path.join(
-                        self.visualize_path, f"recon2D_res{resolution}.png")
+                        self.visualize_path, f"recon2D_W={W}_H={H}png")
                     plot_mask2D(
                         final[0, 0].to("cpu"), save_path, point_coords=(x, y))
 
