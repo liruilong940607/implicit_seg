@@ -54,6 +54,7 @@ if __name__ == "__main__":
         resolutions = resolutions,
         num_points = num_points,
         align_corners = align_corners,
+        balance_value = 0.5,
         device="cuda:0", 
         # visualize_path="../data/"
     )

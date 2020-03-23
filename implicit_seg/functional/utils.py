@@ -32,10 +32,17 @@ def plot_mask2D(mask, save_path, title="", point_coords=None, figsize=10, point_
     # plt.savefig(save_path)
 
 def create_grid3D(min, max, steps, device="cuda:0"):
-    arrange = torch.linspace(min, max, steps).long().to(device)
-    coords = torch.stack(torch.meshgrid([
-        arrange, arrange, arrange
-    ])) # [3, steps, steps, steps]
+    if type(min) is int:
+        min = (min, min, min) # (x, y, z)
+    if type(max) is int:
+        max = (max, max, max) # (x, y)
+    if type(steps) is int:
+        steps = (steps, steps, steps) # (x, y, z)
+    arrangeX = torch.linspace(min[0], max[0], steps[0]).long().to(device)
+    arrangeY = torch.linspace(min[1], max[1], steps[1]).long().to(device)
+    arrangeZ = torch.linspace(min[2], max[2], steps[2]).long().to(device)
+    gridD, girdH, gridW = torch.meshgrid([arrangeZ, arrangeY, arrangeX])
+    coords = torch.stack([gridW, girdH, gridD]) # [2, steps[0], steps[1], steps[2]]
     coords = coords.view(3, -1).t() # [N, 3]
     return coords
 
@@ -66,17 +73,20 @@ def get_uncertain_point_coords_on_grid3D(uncertainty_map, num_points):
         point_coords (Tensor): A tensor of shape (N, P, 3) that contains [0, 1] x [0, 1] normalized
             coordinates of the most uncertain points from the H x W x D grid.
     """
-    R, _, H, W, D = uncertainty_map.shape
-    h_step = 1.0 / float(H)
-    w_step = 1.0 / float(W)
-    d_step = 1.0 / float(D)
+    R, _, D, H, W = uncertainty_map.shape
+    # h_step = 1.0 / float(H)
+    # w_step = 1.0 / float(W)
+    # d_step = 1.0 / float(D)
 
-    num_points = min(H * W * D, num_points)
-    point_indices = torch.topk(uncertainty_map.view(R, H * W * D), k=num_points, dim=1)[1]
+    num_points = min(D * H * W, num_points)
+    point_indices = torch.topk(uncertainty_map.view(R, D * H * W), k=num_points, dim=1)[1]
     point_coords = torch.zeros(R, num_points, 3, dtype=torch.float, device=uncertainty_map.device)
-    point_coords[:, :, 0] = h_step / 2.0 + (point_indices // (W * D)).to(torch.float) * h_step
-    point_coords[:, :, 1] = w_step / 2.0 + (point_indices % (W * D) // D).to(torch.float) * w_step
-    point_coords[:, :, 2] = d_step / 2.0 + (point_indices % D).to(torch.float) * d_step
+    # point_coords[:, :, 0] = h_step / 2.0 + (point_indices // (W * D)).to(torch.float) * h_step
+    # point_coords[:, :, 1] = w_step / 2.0 + (point_indices % (W * D) // D).to(torch.float) * w_step
+    # point_coords[:, :, 2] = d_step / 2.0 + (point_indices % D).to(torch.float) * d_step
+    point_coords[:, :, 0] = (point_indices % W).to(torch.float) # x
+    point_coords[:, :, 1] = (point_indices % (H * W) // W).to(torch.float) # y
+    point_coords[:, :, 2] = (point_indices // (H * W)).to(torch.float) # z
     return point_indices, point_coords
 
 def get_uncertain_point_coords_on_grid2D(uncertainty_map, num_points):
