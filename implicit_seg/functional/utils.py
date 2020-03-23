@@ -87,7 +87,7 @@ def get_uncertain_point_coords_on_grid3D(uncertainty_map, num_points, **kwargs):
     point_coords[:, :, 0] = (point_indices % W).to(torch.float) # x
     point_coords[:, :, 1] = (point_indices % (H * W) // W).to(torch.float) # y
     point_coords[:, :, 2] = (point_indices // (H * W)).to(torch.float) # z
-    # print (point_scores.min(), point_scores.max())
+    print (f"resolution {D} x {H} x {W}", point_scores.min(), point_scores.max())
     return point_indices, point_coords
 
 def get_uncertain_point_coords_on_grid3D_faster(uncertainty_map, num_points, clip_min):
@@ -123,6 +123,7 @@ def get_uncertain_point_coords_on_grid3D_faster(uncertainty_map, num_points, cli
     point_coords[:, :, 0] = (point_indices % W).to(torch.float) # x
     point_coords[:, :, 1] = (point_indices % (H * W) // W).to(torch.float) # y
     point_coords[:, :, 2] = (point_indices // (H * W)).to(torch.float) # z
+    # print (f"resolution {D} x {H} x {W}", point_scores.min(), point_scores.max())
     return point_indices, point_coords
 
 def get_uncertain_point_coords_on_grid2D(uncertainty_map, num_points, **kwargs):

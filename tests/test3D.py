@@ -6,25 +6,25 @@ import cv2
 from implicit_seg.functional import Reconstruction3D
 
 resolutions = [
-    (12+1, 20+1, 12+1),
-    (24+1, 40+1, 24+1),
-    (48+1, 80+1, 48+1),
-    (96+1, 160+1, 96+1),
-    (192+1, 320+1, 192+1),
+    (16+1, 16+1, 16+1),
+    (32+1, 32+1, 32+1),
+    # (64+1, 64+1, 64+1),
+    # (128+1, 128+1, 128+1),
+    # (256+1, 256+1, 256+1),
 ]
 num_points = [
     None, 
-    13*21*13, 
-    13*21*13*4, 
-    13*21*13*16, 
-    13*21*13*64, 
+    8000, 
+    # 8000, 
+    # 8000, 
+    # 8000, 
 ]
 clip_mins = [
     None,
-    -6.3,
-    -3.0,
-    -1.5,
-    -0.8
+    -1e9,
+    # -1e9,
+    # -1e9,
+    # -1e9,
 ]
 align_corners = False
 
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     )
 
     with torch.no_grad():
-        for _ in tqdm.tqdm(range(1000)):
+        for _ in tqdm.tqdm(range(1)):
             sdfs = engine.forward(tensor=query_sdfs)
     print (sdfs.shape)
     cv2.imwrite(
